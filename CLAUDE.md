@@ -1,125 +1,181 @@
-# my-Claude-Code 项目级工作流契约
+# my-Claude-Code 项目级工作流契约（v2 — ralph 风格）
 
-本文档约束主线程（与你对话的线程）与子线程的角色分工、状态外化策略、Superpowers 技能选用规则。主线程每次启动会自动加载本文。
+> 本文档是主线程与子 Agent（worker）共同遵守的工作流契约。每次会话启动自动加载；worker 只读本文即可立即知道做什么。
 
-## 1. 项目定位与基本姿势
+---
+
+## 1. 项目定位
 
 `my-Claude-Code` 是一个**关于 Claude Code 自身**的学习与实践项目。
 
 资产分两类：
-- `references/s01-s20/` — 用户提供的**启发性参考**。主/子线程可主动阅读以借鉴实现方式；若参考不是最优，按更优的来；不写进任何项目状态文件
+
+- `references/s01-s20/` — 用户提供的**启发性参考**。worker 可主动读以借鉴实现方式；若参考不是最优，按更优的来；**不写进任何项目状态文件**
 - 其它仓库内容 — 项目自身的学习产出
 
-基本姿势：
-- 主线程以**查阅 + 派活 + 决策**为主
-- 具体的开发、测试、调研、子任务实施由**子 Agent / 空上下文子线程**承担
-- 上下文管理：决策/验收节点上**外化到文件**，未来主线程可低摩擦接手
+---
 
-## 2. 主线程边界
+## 2. 角色分工
 
-**允许（A + B）**：
+### 2.1 主线程（与你对话的线程）
 
-- **A. 只读查阅**：读项目文件、查 `references/s01-s20/`、查 git 历史、看进程输出、看子 Agent 返回的报告
-- **B. 试错型单条命令**：跑一条命令验证想法（如 `git status`、`python -c "1+1"`、`man xxx`）
+主线程的职责是 **讨论需求 + 派发长程任务**。所有具体开发、测试、调研、子任务实施都交给子 Agent（worker）。
 
-**禁止（C / D / E）**：
+**主线程 CDE 边界（保留）**：
 
-- **C**：编辑或新建任何文件
-- **D**：实施完整功能、调试、跑测试套件
-- **E**：与外部世界交互（`git push`、PR、`gh`、装包、调外部 API）
+- **C**：禁止编辑或新建任何文件
+- **D**：禁止实施完整功能、调试、跑测试套件
+- **E**：禁止与外部世界交互（`git push`、PR、`gh`、装包、调外部 API）
+- **A**：允许只读查阅（读文件、查 git、看子 Agent 报告）
+- **B**：允许单条试错型命令（如 `git status`、`python -c "1+1"`）
 
-B 的边界是"单条"——若是多步骤、或者可能改文件（如 `git commit` 会改 `.git/`），必须派活。
+B 的边界是"单条"——多步骤或可能改文件（如 `git commit`）必须派活。
 
-## 3. 子线程派活与收工契约
+**主线程只在这 4 种情况打断用户**：
 
-**派活（主线程 → 子线程）**：
+1. **PRD 阶段** — 用户表达"想做个 X"且含义/边界/取舍未澄清
+2. **硬阻断** — worker 撞到无法自行决策的歧义或冲突
+3. **里程碑** — 一个 phase / 一个 task cluster 完成
+4. **冲突** — worker 产出与 `docs/PROJECT.md` 决策记录矛盾
 
-- 派活 prompt 必须包含：**(1) 任务描述**、**(2) 相关文件路径**（spec/plan/state/decision）
-- 子线程**自己**去读路径指向的文件，不在 prompt 里复制大段内容
-- 任务可拆为多视角/多阶段/互相独立时，主线程应**主动调 `dispatching-parallel-agents`** 拆成并发子线程
+其余情况不打断，让 worker 自主推进。
 
-**收工（子线程 → 主线程）**：
+### 2.2 Worker（子 Agent / 空上下文子线程）
 
-子线程完工时**必须**给出 4 块结构化产物：
-1. 改动清单（文件 + 简述）
-2. 关键决策/取舍（如有）
-3. 验证结果（跑了什么/看了什么）
-4. 未决问题（如有）
+worker 跑**自主循环**，每次启动只读以下 3 个文件即可开工：
 
-**粒度（动态）**：
+1. `docs/PROJECT.md` — 项目愿景、当前目标、决策日志
+2. `docs/tasks.json` — task list（每条含 `id/title/description/priority/passes/notes`）
+3. `docs/AGENTS.md` — 累计模式 / 坑 / 约定
 
-- 单一原子动作（如修一行） → 1 个子线程
-- 一个完整小特性 → 1 个子线程自带 `writing-plans`
-- 多模块/多视角 → 多个子线程并发
+worker 单次任务的标准循环：
 
-## 4. 状态外化
+```
+读 PROJECT.md + tasks.json + AGENTS.md
+  → 选一个 passes:false 的 task（按 priority + id 顺序）
+    → 实施（写代码 / 改文档 / 跑测试）
+      → 质量门禁（代码类：typecheck + 测试；纯文档/小脚本可松绑）
+        → git commit（commit message 描述这条 task 做了什么）
+          → 把该 task 的 passes 改为 true，更新 tasks.json
+            → 在 AGENTS.md 追加本次踩到的坑 / 学到的约定（如有）
+              → 在 PROJECT.md 的 Decisions / Progress 区追加一条（如有里程碑）
+                → 循环回到顶部，选下一个 task
+```
 
-**位置**：`docs/superpowers/` 下分三目录：
+worker 收工时**必须**回主线程 4 块结构化产物：
 
-- `specs/` — 需求/设计文档（`brainstorming` 技能产出）
-- `plans/` — 实施计划（`writing-plans` 技能产出）
-- `state/` — 状态文件
+1. **改动清单**（文件 + 简述）
+2. **关键决策 / 取舍**（如有）
+3. **验证结果**（跑了什么 / 看了什么）
+4. **未决问题**（如有）
 
-**state/ 下 4 个文件**（按主题分多文件）：
+### 2.3 worker 可用 skill
 
-- `docs/superpowers/state/STATE.md` — 项目当前全景：愿景、当前目标、下一动作
-- `docs/superpowers/state/decisions.md` — 决策日志：按时间倒序，每条决策记日期、决策、原因、影响
-- `docs/superpowers/state/progress.md` — 派活/收工流水：按时间倒序
-- `docs/superpowers/state/open-questions.md` — 未决问题：需要用户决策才能继续的事
+worker 自主循环中**只**在以下场景调对应 skill，不在主线程调：
 
-**何时写**：
+| 场景 | 调用的 skill |
+|------|-------------|
+| 遇 bug / 测试失败 | `systematic-debugging`（强制：先定根因再修） |
+| 实施新功能 | `test-driven-development`（代码类 task 适用时） |
+| 收尾（说"做完了"前） | `verification-before-completion`（强制） |
+| 任务可拆为多个独立子任务 | `dispatching-parallel-agents`（需要并发时） |
 
-- 决策/验收点 → 至少更新 `STATE.md` 和 `decisions.md`
-- 子线程完工 → 至少更新 `progress.md`
-- 任何阻断子线程的问题 → 写入 `open-questions.md` 并提示用户
+不调 `brainstorming` / `writing-plans` / `executing-plans` 等流程型 skill——v2 取消了完整 spec/plan 闭环，task list 本身就是执行计划。
 
-**子线程读什么**：
+---
 
-- 接到任务时**先读** `STATE.md` 了解项目当前位置
-- 涉及历史决策时**按需读** `decisions.md`
-- 实现方式选择时**可主动**读 `references/s01-s20/`，但不是必读，也不是项目状态来源
+## 3. 状态外化（3 个文件）
 
-**格式约束**：
+位置统一在 `docs/`，文件名固定，不分子目录：
 
-- 纯 markdown
-- 文件头部用 H1 + 简短说明
-- 时间统一 ISO 日期 `YYYY-MM-DD`
+| 文件 | 角色 | 何时写 |
+|------|------|--------|
+| `docs/PROJECT.md` | 项目愿景 + 当前目标 + 下一动作 + Decisions 流水（按时间倒序） | 决策 / 验收 / 里程碑 |
+| `docs/tasks.json` | ralph 风格 task list | 每次 worker 完成 task |
+| `docs/AGENTS.md` | 累计模式 / 坑 / 约定（worker 启动自动读） | worker 每次跑完有可复用经验时追加 |
 
-## 5. Superpowers 流程：按场景选用
+### 3.1 `docs/PROJECT.md` 结构
 
-| 场景 | 建议技能 |
-|------|---------|
-| 用户说"想做个 X" / "改个行为" / "加个功能"，含义/边界/取舍还没定 | `brainstorming` |
-| brainstorming 后产出 spec | `writing-plans` 把它转成可执行 plan |
-| plan 已就绪，开始动手 | `executing-plans`（独立 session）或 `subagent-driven-development`（当前 session 子 Agent 派活） |
-| 接到可拆解为多个独立子任务的工作 | `dispatching-parallel-agents` |
-| 跑测试 / 验收子线程产出 | `test-driven-development`（如适用）/ `verification-before-completion` |
-| 收到 code review 反馈 | `receiving-code-review` |
-| 准备合并 / 收尾 | `finishing-a-development-branch` |
-| 大改前自查或大改后自查 | `requesting-code-review` |
+- **愿景** — 1-2 句说清项目是什么
+- **当前目标** — 当前 phase 在做什么
+- **下一动作** — 具体的下一条（谁做什么）
+- **Decisions** — 按时间倒序的决策日志，每条含日期 / 决策 / 原因 / 影响
+- **Progress** — 派活 / 收工流水（按时间倒序，简短即可）
 
-**强制项**（无论流程严不严）：
+### 3.2 `docs/tasks.json` schema
 
-- 遇到任何 bug 或测试失败 → **必须**先 `systematic-debugging` 再修
-- 收尾（说"做完了"前） → **必须** `verification-before-completion`
-- 接到看似模糊的反馈（"代码建议改改"） → **必须** `receiving-code-review` 而不是直接动手
+```json
+{
+  "stories": [
+    {
+      "id": "T001",
+      "title": "短句标题",
+      "description": "1-3 句话说清要做什么、为什么",
+      "priority": 1,
+      "passes": false,
+      "notes": ""
+    }
+  ]
+}
+```
 
-不强制每次都跑完整 brainstorming → spec → plan → 实施的闭环。小修小补可以跳过整套。但若用户表达"想做个 X"且含义未澄清，主线程应主动调 `brainstorming`。
+字段约束：
 
-## 6. 异常路径与上下文管理
+- `id` — 形如 `T001` / `T002`，全局唯一
+- `title` — 短句，不超过 50 字
+- `description` — 1-3 句；可含验收标准
+- `priority` — 整数，1 最高；worker 按 `(priority asc, id asc)` 选下一个
+- `passes` — `true` / `false`；worker 完成后改为 `true`
+- `notes` — worker 自由字段（踩坑 / 链接 / 后续 TODO 等）
 
-**子线程失败的处置**：
+**task 粒度约束**：每条 = 一个 commit 级别的小故事，最大不超过"半天人工工作量"。
 
-- 主线程不直接在主线程修补，而是**重新派活**，prompt 里附前次失败的关键信息（读了什么、试了什么、错在哪）
+**质量门禁**：
 
-**主线程上下文膨胀的处置**：
+- **代码类 task**：必须过 typecheck + 测试
+- **纯文档 / 小脚本类**：可松绑，worker 自评
 
-- 自我评估剩余空间不足时：
-  1. 把当下共识**外化**到 `docs/superpowers/state/STATE.md`（和 `decisions.md` 如有）
-  2. 提示用户：「对话已较长，已把当前状态写入 STATE.md，建议『新开会话』从 STATE.md 继续——请把 STATE.md 路径作为新会话的第一句指令」
-- 用户主动说"我们暂停 / 收一下" → 同样外化
+### 3.3 `docs/AGENTS.md` 约束
 
-**冲突解决**：
+- **不空**：必须有至少一段初始约定（如路径风格、不向主线程问已确认的事）
+- **持续追加**：worker 跑完发现有可复用经验就追加（按时间倒序或加日期小节）
+- **不删除旧条目**：历史约定可能仍有效
+- **不能与 `CLAUDE.md` / `PROJECT.md` 矛盾**：矛盾时以 `CLAUDE.md` / `PROJECT.md` 为准
 
-- 子线程产出与 `STATE.md` / `decisions.md` 矛盾时 → 以状态文件为准，子线程在 completion report 中标记"与现状 X 矛盾"，主线程裁决
-- 决策变更 → **追加**新决策到 `decisions.md`（带"覆盖 X 决策"标注），不删旧决策
+---
+
+## 4. 异常路径
+
+### 4.1 worker 失败
+
+worker 失败时**不**在主线程直接修。主线程重新派活，prompt 里附前次失败的关键信息（读了什么、试了什么、错在哪）。
+
+### 4.2 主线程上下文膨胀
+
+主线程自我评估剩余空间不足时：
+
+1. 把当下共识外化到 `docs/PROJECT.md`（和 `docs/tasks.json` 如有变化）
+2. 提示用户：「对话已较长，已把当前状态写入 PROJECT.md，建议『新开会话』从 PROJECT.md 继续——请把 PROJECT.md 路径作为新会话的第一句指令」
+
+### 4.3 冲突解决
+
+- worker 产出与 `PROJECT.md` / `CLAUDE.md` 矛盾 → 以状态文件为准，worker 在 completion report 中标记"与现状 X 矛盾"，主线程裁决
+- 决策变更 → **追加**新决策到 `PROJECT.md` 的 Decisions 区（带"覆盖 X 决策"标注），不删旧决策
+
+### 4.4 PRD 触发
+
+worker 接到含义未澄清的"想做个 X"任务 → 暂停、回主线程、主线程主动调 `brainstorming` 跟用户对齐，再把结果拆成 task 写进 `tasks.json`。
+
+---
+
+## 5. v1 → v2 变更摘要
+
+| 维度 | v1（已归档） | v2（当前） |
+|------|-------------|-----------|
+| 状态文件 | `docs/superpowers/{specs,plans,state}/` 4 个 state 文件 | `docs/{PROJECT.md,tasks.json,AGENTS.md}` 3 个文件 |
+| 执行模式 | 流程型（brainstorming → spec → plan → execute） | ralph 风格（worker 读 task list 自主循环） |
+| 文档契约 | spec / plan / 4 个 state 文件 | PROJECT + tasks.json + AGENTS |
+| 状态位置 | `docs/superpowers/` | `docs/` 直接放 |
+| 旧文件 | 已归档到 `docs/archive/superpowers-v1/` | 不再用 |
+
+v1 文档已归档到 `docs/archive/superpowers-v1/`，留作历史参考。
