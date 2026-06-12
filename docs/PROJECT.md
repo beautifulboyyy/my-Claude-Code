@@ -9,7 +9,7 @@
 
 做一个**稳定、简单、高效、可扩展的 Agent Core**，叫 `agent-flow`：
 
-- **形态**：先做可嵌入、可测试的 single-agent core；CLI / TUI 是 core 的薄前端
+- **形态**：先做可嵌入、可测试的 single-agent core；Textual TUI 是 core 的薄前端
 - **能力**：Core 能完成一个 Agent turn / run 的"读 → 改 → 跑 → 修"闭环，并以事件流暴露全过程
 - **设计哲学**：参考 Pi 的 minimal harness / primitives-first 思路：core 提供稳定 primitives，不把 workflow、插件生态、多 Agent 编排做死在内核里
 - **扩展方向**：Skill、MCP、插件、dynamic workflow、多 Agent、长程任务、并发运行都在 core primitives 上逐层扩展
@@ -30,15 +30,15 @@
 | **Context Builder** | 组装 system prompt、项目上下文、工具说明 | Skill、AGENTS.md、memory、dynamic workflow |
 | **Policy Hook** | 工具执行前有统一 allow / deny / ask 接口；策略先最小 | 权限系统、沙箱、路径保护、审批 UI |
 | **State / Session** | 事件与消息可序列化、可持久化、可恢复 | session tree、branch、Ralph fresh-context loop |
-| **LLM Provider** | provider 抽象 + fake provider 测试桩；AgentLoop 稳定后尽早接 LiteLLM 真实 provider | 多 provider、local model、路由 |
-| **Thin CLI/TUI** | 作为 core 消费者验证闭环，不主导架构 | 更完整交互体验 |
+| **LLM Provider** | provider 抽象 + fake provider 测试桩；AgentLoop 稳定后尽早接 MiMo 兼容 API / LiteLLM 真实 provider | 多 provider、local model、路由 |
+| **Thin TUI** | Textual TUI 作为 core 消费者验证闭环，不主导架构 | 更完整交互体验 |
 
 **v1 完成判定**：
 
 1. **离线确定性验收**：无 API key 时，fake provider 能稳定覆盖 streaming、tool call、tool result 回灌、provider 错误、provider 超时、tool 超时、取消、失败终态；测试套件可重复通过。
-2. **真实 API 可用性验收**：用户本地提供 API key 后，通过 LiteLLM provider 在一个小 Python 项目里输入"修复 failing test"，Agent Core 能流式输出、读取文件、修改代码、运行测试、根据结果继续，最终明确完成或失败；全过程有事件记录并可保存/恢复。**没有"玩具感"**。
+2. **真实 API 可用性验收**：用户本地提供 `MIMO_API_KEY` 后，通过 MiMo OpenAI/Anthropic 兼容 API（优先 OpenAI-compatible endpoint）在一个小 Python 项目里输入"修复 failing test"，Agent Core 能流式输出、读取文件、修改代码、运行测试、根据结果继续，最终明确完成或失败；全过程有事件记录并可保存/恢复。**没有"玩具感"**。
 
-API key 只从环境变量或用户级本地配置读取，禁止写入仓库。
+API key 只从环境变量或用户级本地配置读取，禁止写入仓库。测试默认环境变量名：`MIMO_API_KEY`。
 
 **v1 明确不做**：Skill 系统、MCP client、插件市场、多 Agent、子 Agent、长程任务、并发调度、dynamic workflow、复杂 session tree。这些是 v1 core primitives 稳定后的后续 phase。
 
@@ -48,7 +48,7 @@ API key 只从环境变量或用户级本地配置读取，禁止写入仓库。
 
 1. 主线程已将第一版定位收敛为 Agent Core v1，并写入 `docs/tasks.json` Phase 1
 2. 派 worker 从最高优先级 task 开始：读三件套 → 实施 → 质量门禁 → commit → 更新 task
-3. Phase 1 完成后，再讨论 Skill / MCP / 插件层的 v1.1 需求
+3. Phase 1 完成后，Skill / MCP / 插件层一起扩展，不做二选一
 
 ---
 
@@ -61,9 +61,18 @@ API key 只从环境变量或用户级本地配置读取，禁止写入仓库。
 用户确认本地有真实 API key，因此 Phase 1 不只做 fake provider：
 
 - fake provider 仍是 core 稳定性与失败路径的确定性测试基础
-- LiteLLM provider 提前到 AgentLoop 稳定之后接入，用真实模型验证 tool-call 闭环
-- API key 只允许来自环境变量或用户本地配置，不写入仓库
+- 真实 provider 使用 MiMo 兼容 API：OpenAI endpoint `https://api.xiaomimimo.com/v1/chat/completions`，Anthropic endpoint `https://api.xiaomimimo.com/anthropic/v1/messages`
+- 默认模型候选：`mimo-v2.5-pro`
+- API key 只允许来自 `MIMO_API_KEY` 环境变量或用户本地配置，不写入仓库
 - 缺少 API key 时，离线测试套件必须照常通过
+
+### 2026-06-12 — v1 前端先做 TUI
+
+用户明确 v1 thin frontend 先做 TUI，不走 CLI 优先路线：
+
+- Textual 仍作为默认 TUI 框架
+- TUI 只是 core 的事件消费者和用户输入层，不允许把 AgentLoop 逻辑塞进 UI
+- CLI 可作为测试/调试辅助，但不是 v1 用户验收主路径
 
 ### 2026-06-12 — 第一版收敛为 Agent Core v1
 
@@ -72,7 +81,7 @@ API key 只从环境变量或用户级本地配置读取，禁止写入仓库。
 - 首要目标：稳定、健壮、简单、高效、可扩展的 single-agent core
 - 重点参考：Pi 的 minimal harness / primitives-first 架构哲学
 - v1 先不做 Skill / MCP / 多 Agent / 长程任务；只把 ToolProvider、ContextProvider、PolicyProvider、EventSubscriber 等 core primitives 留稳
-- 后续按层扩展：Skill → MCP / plugin → dynamic workflow → multi-agent / long-running / concurrency
+- 后续按层扩展：Skill + MCP + plugin 一起扩展 → dynamic workflow → multi-agent / long-running / concurrency
 - Core 边界：只负责一个 Agent run/turn 的稳定执行；调度、持久编排、复杂 workflow 放在 core 之外
 
 ### 2026-06-11 — PRD 阶段对齐结果
@@ -119,7 +128,8 @@ API key 只从环境变量或用户级本地配置读取，禁止写入仓库。
 - 确认第一版先做 Agent Core primitives：AgentLoop、Event Stream、Tool Registry、Context Builder、Policy Hook、State/Session、LLM Provider 抽象
 - 参考 Pi / Ralph：Pi 用于 core 架构哲学，Ralph 作为后续长程任务 / fresh-context loop 参考
 - 写入 `docs/tasks.json` Phase 1，准备派 worker 实施
-- 补充真实 API 验收：LiteLLM provider 在 core loop 稳定后提前接入；fake provider 继续作为确定性回归基础
+- 补充真实 API 验收：MiMo 兼容 API / LiteLLM provider 在 core loop 稳定后提前接入；fake provider 继续作为确定性回归基础
+- 确认 v1 前端主路径为 Textual TUI；Skill / MCP 后续一起扩展
 
 ### 2026-06-11 — PRD 阶段对齐完成 + PROJECT.md 落地
 
@@ -134,6 +144,5 @@ API key 只从环境变量或用户级本地配置读取，禁止写入仓库。
 
 > 需要用户决策才能继续的事。
 
-1. **CLI 还是 TUI 先行** — v1 只要求 thin frontend 验证 core；worker 可优先选更快闭环的 CLI，再接 TUI
-2. **真实 API 验收使用哪个默认模型 / provider** — 需要实施到 LiteLLM 时再由本地可用 API key 决定；缺省不写死
-3. **Skill / MCP 的第一批扩展验收** — Phase 1 后再决定 v1.1 先做 Skill 还是 MCP；Tavily search MCP 是候选验收案例
+1. **MiMo 接入优先走 OpenAI-compatible 还是 Anthropic-compatible** — 默认优先 OpenAI-compatible；若 tool-call / streaming 适配不顺，worker 可切 Anthropic-compatible。
+2. **TUI 的最小交互形态** — worker 可按 core 验收最小化：消息区、工具事件区、输入区、状态/错误提示；不追求漂亮 UI。

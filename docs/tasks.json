@@ -3,10 +3,10 @@
     {
       "id": "T001",
       "title": "初始化 Agent Core 包骨架",
-      "description": "建立 Python 包结构、基础 CLI 入口和测试框架。验收：能运行最小命令与测试命令，README 或项目说明包含本地启动方式。",
+      "description": "建立 Python 包结构、Textual TUI 入口雏形和测试框架。验收：能运行最小 TUI 启动命令与测试命令，README 或项目说明包含本地启动方式。",
       "priority": 1,
       "passes": false,
-      "notes": "不要实现完整 TUI；先为 core 开发提供稳定工程骨架。"
+      "notes": "TUI 是 thin frontend；不要把 AgentLoop 逻辑塞进 UI。CLI 可作为调试辅助但不是主路径。"
     },
     {
       "id": "T002",
@@ -50,11 +50,11 @@
     },
     {
       "id": "T007",
-      "title": "接入 LiteLLM provider",
-      "description": "在 fake provider 与 AgentLoop 稳定后接入 LiteLLM provider 抽象，支持至少一个真实模型配置。验收：有跳过式集成测试或手动验证说明，缺少 API key 时测试套件仍可通过。",
+      "title": "接入 MiMo 真实 provider",
+      "description": "在 fake provider 与 AgentLoop 稳定后接入 MiMo 兼容 API provider，优先 OpenAI-compatible endpoint，必要时可切 Anthropic-compatible endpoint。验收：有跳过式集成测试或手动验证说明，缺少 MIMO_API_KEY 时测试套件仍可通过。",
       "priority": 7,
       "passes": false,
-      "notes": "真实 provider 尽早验证 tool-call/streaming 设计；API key 只从环境变量或用户本地配置读取。"
+      "notes": "OpenAI endpoint: https://api.xiaomimimo.com/v1/chat/completions；Anthropic endpoint: https://api.xiaomimimo.com/anthropic/v1/messages；默认模型候选 mimo-v2.5-pro；API key 只从 MIMO_API_KEY 或用户本地配置读取。"
     },
     {
       "id": "T008",
@@ -82,19 +82,19 @@
     },
     {
       "id": "T011",
-      "title": "接入最小 CLI 前端",
-      "description": "实现 thin CLI，调用 Agent Core、显示事件流、处理最小用户输入。验收：用户可在终端发起一次 fake 或真实配置的 agent run，并看到工具事件。",
+      "title": "接入最小 TUI 前端",
+      "description": "实现 thin Textual TUI，调用 Agent Core、显示事件流、处理最小用户输入。验收：用户可在终端 TUI 发起一次 fake 或真实配置的 agent run，并看到消息、工具事件、状态/错误提示。",
       "priority": 11,
       "passes": false,
-      "notes": "CLI/TUI 是 core 消费者；不要让 UI 逻辑进入 AgentLoop。"
+      "notes": "TUI 是 core 消费者；不要让 UI 逻辑进入 AgentLoop。"
     },
     {
       "id": "T012",
       "title": "完成 Core v1 端到端验收",
-      "description": "准备一个小型示例项目或 fixture，演示 agent-flow 修复 failing test 的完整闭环。验收：fake provider 离线路径稳定通过；有 API key 时真实 LiteLLM 路径可运行；README 记录 5 分钟启动路径、验证命令和已知限制。",
+      "description": "准备一个小型示例项目或 fixture，演示 agent-flow 在 TUI 中修复 failing test 的完整闭环。验收：fake provider 离线路径稳定通过；有 MIMO_API_KEY 时真实 MiMo 路径可运行；README 记录 5 分钟启动路径、验证命令和已知限制。",
       "priority": 12,
       "passes": false,
-      "notes": "Phase 1 收尾任务；完成后再讨论 Skill/MCP v1.1。"
+      "notes": "Phase 1 收尾任务；完成后 Skill/MCP/plugin 一起进入下一层扩展。"
     }
   ]
 }
