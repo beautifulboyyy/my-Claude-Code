@@ -29,7 +29,7 @@
       "title": "实现 ToolRegistry 基础能力",
       "description": "实现工具注册、列出、启用、schema 暴露与执行分发。验收：测试能注册一个内存工具并通过 registry 执行。",
       "priority": 4,
-      "passes": false,
+      "passes": true,
       "notes": "未来 MCP tool、plugin tool 都应适配这层。"
     },
     {

@@ -35,6 +35,7 @@ from agent_flow.core.providers import (
     ProviderToolCall,
     provider_chunk_from_dict,
 )
+from agent_flow.core.tools import Tool, ToolHandler, ToolHandlerResult, ToolRegistry
 from agent_flow.core.types import JsonObject, JsonPrimitive, JsonValue
 
 __all__ = [
@@ -59,10 +60,14 @@ __all__ = [
     "RunFinishedEvent",
     "RunStartedEvent",
     "SystemMessage",
+    "Tool",
     "ToolCall",
     "ToolCallFinishedEvent",
     "ToolCallStartedEvent",
+    "ToolHandler",
+    "ToolHandlerResult",
     "ToolMessage",
+    "ToolRegistry",
     "ToolResult",
     "TurnFinishedEvent",
     "TurnStartedEvent",

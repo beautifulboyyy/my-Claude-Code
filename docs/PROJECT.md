@@ -131,6 +131,13 @@ API key 只从环境变量或用户级本地配置读取，禁止写入仓库。
 
 > 派活 / 收工流水，按时间倒序。
 
+### 2026-06-12 — T004 实现 ToolRegistry 基础能力
+
+- 新增 `Tool` 与 `ToolRegistry`，支持工具注册、启用 / 禁用、active list、schema 暴露与 async 执行分发
+- 工具执行复用 T002 的 `ToolCall` / `ToolResult`，同步 / 异步 handler 都会归一化为 `ToolResult`
+- 未知工具、禁用工具、工具异常均返回明确 error result，便于后续 AgentLoop 回灌
+- T004 已在 `docs/tasks.json` 标记为通过
+
 ### 2026-06-12 — T003 实现 fake LLM provider
 
 - 新增 `LLMProvider` async streaming 协议与 provider chunk 模型
