@@ -50,11 +50,11 @@
     },
     {
       "id": "T007",
-      "title": "实现 PolicyProvider 接口",
-      "description": "在工具执行前接入 allow / deny / ask 的策略接口，先实现默认最小策略和测试用策略。验收：deny 会返回 tool denied 结果，ask 会产生 policy_required 事件。",
+      "title": "接入 LiteLLM provider",
+      "description": "在 fake provider 与 AgentLoop 稳定后接入 LiteLLM provider 抽象，支持至少一个真实模型配置。验收：有跳过式集成测试或手动验证说明，缺少 API key 时测试套件仍可通过。",
       "priority": 7,
       "passes": false,
-      "notes": "先做 hook 形状，不做复杂权限 UI。"
+      "notes": "真实 provider 尽早验证 tool-call/streaming 设计；API key 只从环境变量或用户本地配置读取。"
     },
     {
       "id": "T008",
@@ -66,32 +66,32 @@
     },
     {
       "id": "T009",
+      "title": "实现 PolicyProvider 接口",
+      "description": "在工具执行前接入 allow / deny / ask 的策略接口，先实现默认最小策略和测试用策略。验收：deny 会返回 tool denied 结果，ask 会产生 policy_required 事件。",
+      "priority": 9,
+      "passes": false,
+      "notes": "先做 hook 形状，不做复杂权限 UI。"
+    },
+    {
+      "id": "T010",
       "title": "实现事件持久化与恢复",
       "description": "实现简单 JSONL event store，能 append run events 并恢复消息/状态。验收：一次 fake agent run 保存后可重新加载，恢复出可继续使用的上下文。",
-      "priority": 9,
+      "priority": 10,
       "passes": false,
       "notes": "先线性 JSONL，不做 session tree。"
     },
     {
-      "id": "T010",
+      "id": "T011",
       "title": "接入最小 CLI 前端",
       "description": "实现 thin CLI，调用 Agent Core、显示事件流、处理最小用户输入。验收：用户可在终端发起一次 fake 或真实配置的 agent run，并看到工具事件。",
-      "priority": 10,
+      "priority": 11,
       "passes": false,
       "notes": "CLI/TUI 是 core 消费者；不要让 UI 逻辑进入 AgentLoop。"
     },
     {
-      "id": "T011",
-      "title": "接入 LiteLLM provider",
-      "description": "在 fake provider 稳定后接入 LiteLLM provider 抽象，支持至少一个真实模型配置。验收：有跳过式集成测试或手动验证说明，缺少 API key 时测试套件仍可通过。",
-      "priority": 11,
-      "passes": false,
-      "notes": "真实 provider 不能破坏离线 core 单测。"
-    },
-    {
       "id": "T012",
       "title": "完成 Core v1 端到端验收",
-      "description": "准备一个小型示例项目或 fixture，演示 agent-flow 修复 failing test 的完整闭环。验收：README 记录 5 分钟启动路径、验证命令和已知限制。",
+      "description": "准备一个小型示例项目或 fixture，演示 agent-flow 修复 failing test 的完整闭环。验收：fake provider 离线路径稳定通过；有 API key 时真实 LiteLLM 路径可运行；README 记录 5 分钟启动路径、验证命令和已知限制。",
       "priority": 12,
       "passes": false,
       "notes": "Phase 1 收尾任务；完成后再讨论 Skill/MCP v1.1。"

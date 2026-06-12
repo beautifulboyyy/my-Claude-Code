@@ -30,10 +30,15 @@
 | **Context Builder** | 组装 system prompt、项目上下文、工具说明 | Skill、AGENTS.md、memory、dynamic workflow |
 | **Policy Hook** | 工具执行前有统一 allow / deny / ask 接口；策略先最小 | 权限系统、沙箱、路径保护、审批 UI |
 | **State / Session** | 事件与消息可序列化、可持久化、可恢复 | session tree、branch、Ralph fresh-context loop |
-| **LLM Provider** | provider 抽象 + fake provider 测试桩；真实 provider 后接 LiteLLM | 多 provider、local model、路由 |
+| **LLM Provider** | provider 抽象 + fake provider 测试桩；AgentLoop 稳定后尽早接 LiteLLM 真实 provider | 多 provider、local model、路由 |
 | **Thin CLI/TUI** | 作为 core 消费者验证闭环，不主导架构 | 更完整交互体验 |
 
-**v1 完成判定**：在一个小 Python 项目里，用户通过 CLI/TUI 输入"修复 failing test"，Agent Core 能流式输出、读取文件、修改代码、运行测试、根据结果继续，最终明确完成或失败；全过程有事件记录并可保存/恢复。**没有"玩具感"**。
+**v1 完成判定**：
+
+1. **离线确定性验收**：无 API key 时，fake provider 能稳定覆盖 streaming、tool call、tool result 回灌、provider 错误、provider 超时、tool 超时、取消、失败终态；测试套件可重复通过。
+2. **真实 API 可用性验收**：用户本地提供 API key 后，通过 LiteLLM provider 在一个小 Python 项目里输入"修复 failing test"，Agent Core 能流式输出、读取文件、修改代码、运行测试、根据结果继续，最终明确完成或失败；全过程有事件记录并可保存/恢复。**没有"玩具感"**。
+
+API key 只从环境变量或用户级本地配置读取，禁止写入仓库。
 
 **v1 明确不做**：Skill 系统、MCP client、插件市场、多 Agent、子 Agent、长程任务、并发调度、dynamic workflow、复杂 session tree。这些是 v1 core primitives 稳定后的后续 phase。
 
@@ -50,6 +55,15 @@
 ## Decisions
 
 > 按时间倒序：最新在上。
+
+### 2026-06-12 — 真实 API 验收纳入 Phase 1
+
+用户确认本地有真实 API key，因此 Phase 1 不只做 fake provider：
+
+- fake provider 仍是 core 稳定性与失败路径的确定性测试基础
+- LiteLLM provider 提前到 AgentLoop 稳定之后接入，用真实模型验证 tool-call 闭环
+- API key 只允许来自环境变量或用户本地配置，不写入仓库
+- 缺少 API key 时，离线测试套件必须照常通过
 
 ### 2026-06-12 — 第一版收敛为 Agent Core v1
 
@@ -105,6 +119,7 @@
 - 确认第一版先做 Agent Core primitives：AgentLoop、Event Stream、Tool Registry、Context Builder、Policy Hook、State/Session、LLM Provider 抽象
 - 参考 Pi / Ralph：Pi 用于 core 架构哲学，Ralph 作为后续长程任务 / fresh-context loop 参考
 - 写入 `docs/tasks.json` Phase 1，准备派 worker 实施
+- 补充真实 API 验收：LiteLLM provider 在 core loop 稳定后提前接入；fake provider 继续作为确定性回归基础
 
 ### 2026-06-11 — PRD 阶段对齐完成 + PROJECT.md 落地
 
@@ -120,5 +135,5 @@
 > 需要用户决策才能继续的事。
 
 1. **CLI 还是 TUI 先行** — v1 只要求 thin frontend 验证 core；worker 可优先选更快闭环的 CLI，再接 TUI
-2. **真实 LLM provider 接入时机** — Phase 1 先用 fake provider 建稳定测试；LiteLLM 可在 core loop 稳定后接入
+2. **真实 API 验收使用哪个默认模型 / provider** — 需要实施到 LiteLLM 时再由本地可用 API key 决定；缺省不写死
 3. **Skill / MCP 的第一批扩展验收** — Phase 1 后再决定 v1.1 先做 Skill 还是 MCP；Tavily search MCP 是候选验收案例
