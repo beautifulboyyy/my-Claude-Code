@@ -1,3 +1,100 @@
 {
-  "stories": []
+  "stories": [
+    {
+      "id": "T001",
+      "title": "初始化 Agent Core 包骨架",
+      "description": "建立 Python 包结构、基础 CLI 入口和测试框架。验收：能运行最小命令与测试命令，README 或项目说明包含本地启动方式。",
+      "priority": 1,
+      "passes": false,
+      "notes": "不要实现完整 TUI；先为 core 开发提供稳定工程骨架。"
+    },
+    {
+      "id": "T002",
+      "title": "定义 core 消息与事件模型",
+      "description": "定义可序列化的 message、tool call、tool result、run/turn/message/tool/error event 数据模型。验收：模型可 JSON round-trip，并有聚焦单测。",
+      "priority": 2,
+      "passes": false,
+      "notes": "事件模型是 UI、session、未来 multi-agent 调度的共同语言。"
+    },
+    {
+      "id": "T003",
+      "title": "实现 fake LLM provider",
+      "description": "实现可脚本化的 fake provider，用于稳定复现 assistant streaming、tool call、final response、错误等路径。验收：无需真实 API key 即可测试 agent loop。",
+      "priority": 3,
+      "passes": false,
+      "notes": "先 fake 后真实 provider，避免 core 测试被网络和模型不确定性污染。"
+    },
+    {
+      "id": "T004",
+      "title": "实现 ToolRegistry 基础能力",
+      "description": "实现工具注册、列出、启用、schema 暴露与执行分发。验收：测试能注册一个内存工具并通过 registry 执行。",
+      "priority": 4,
+      "passes": false,
+      "notes": "未来 MCP tool、plugin tool 都应适配这层。"
+    },
+    {
+      "id": "T005",
+      "title": "实现 AgentLoop 最小闭环",
+      "description": "基于 fake provider 和 ToolRegistry 实现单 Agent 多轮 tool-call loop：用户输入、assistant streaming、tool call、tool result 回灌、最终完成。验收：端到端测试覆盖一次工具调用后继续回答。",
+      "priority": 5,
+      "passes": false,
+      "notes": "Core 只做单 Agent run，不做 workflow 编排。"
+    },
+    {
+      "id": "T006",
+      "title": "加入超时取消与失败语义",
+      "description": "为模型流和工具执行加入 timeout、cancel、run_failed / run_finished 终态事件。验收：fake provider 永不结束、工具永不返回、普通异常三类路径都有测试且不会挂死。",
+      "priority": 6,
+      "passes": false,
+      "notes": "吸收 Pi issue 的教训：core 不信任任何 async 边界。"
+    },
+    {
+      "id": "T007",
+      "title": "实现 PolicyProvider 接口",
+      "description": "在工具执行前接入 allow / deny / ask 的策略接口，先实现默认最小策略和测试用策略。验收：deny 会返回 tool denied 结果，ask 会产生 policy_required 事件。",
+      "priority": 7,
+      "passes": false,
+      "notes": "先做 hook 形状，不做复杂权限 UI。"
+    },
+    {
+      "id": "T008",
+      "title": "实现内置 coding 工具",
+      "description": "实现 read、write、edit、glob、grep、shell 六个基础工具，并通过 ToolRegistry 暴露。验收：每个工具有单测，路径处理遵守 Windows/PowerShell 默认约定。",
+      "priority": 8,
+      "passes": false,
+      "notes": "shell 工具在 Windows 默认走 PowerShell；类 Unix shell 后续再抽象。"
+    },
+    {
+      "id": "T009",
+      "title": "实现事件持久化与恢复",
+      "description": "实现简单 JSONL event store，能 append run events 并恢复消息/状态。验收：一次 fake agent run 保存后可重新加载，恢复出可继续使用的上下文。",
+      "priority": 9,
+      "passes": false,
+      "notes": "先线性 JSONL，不做 session tree。"
+    },
+    {
+      "id": "T010",
+      "title": "接入最小 CLI 前端",
+      "description": "实现 thin CLI，调用 Agent Core、显示事件流、处理最小用户输入。验收：用户可在终端发起一次 fake 或真实配置的 agent run，并看到工具事件。",
+      "priority": 10,
+      "passes": false,
+      "notes": "CLI/TUI 是 core 消费者；不要让 UI 逻辑进入 AgentLoop。"
+    },
+    {
+      "id": "T011",
+      "title": "接入 LiteLLM provider",
+      "description": "在 fake provider 稳定后接入 LiteLLM provider 抽象，支持至少一个真实模型配置。验收：有跳过式集成测试或手动验证说明，缺少 API key 时测试套件仍可通过。",
+      "priority": 11,
+      "passes": false,
+      "notes": "真实 provider 不能破坏离线 core 单测。"
+    },
+    {
+      "id": "T012",
+      "title": "完成 Core v1 端到端验收",
+      "description": "准备一个小型示例项目或 fixture，演示 agent-flow 修复 failing test 的完整闭环。验收：README 记录 5 分钟启动路径、验证命令和已知限制。",
+      "priority": 12,
+      "passes": false,
+      "notes": "Phase 1 收尾任务；完成后再讨论 Skill/MCP v1.1。"
+    }
+  ]
 }

@@ -1,17 +1,18 @@
 # Project: agent-flow
 
 > 项目代号 `agent-flow`（曾用名候选 `cca`，2026-06-11 敲定）。
-> 学习 / 实践项目 — 从零实现一个简化版 Claude Code。
+> 学习 / 实践项目 — 从零实现一个可扩展的 Agent Core，后续演进为 coding agent / multi-agent runtime。
 
 ---
 
 ## 愿景
 
-做一个**简化版 Claude Code**，叫 `agent-flow`：
+做一个**稳定、简单、高效、可扩展的 Agent Core**，叫 `agent-flow`：
 
-- **形态**：终端 CLI / TUI 应用。敲 `agent-flow` 直接进入全屏 TUI 对话框，开始聊天
-- **能力**：能完成"读 → 改 → 跑 → 修"完整 coding 闭环
-- **设计哲学**：参考 `references/s01-s20/` 课程的 20 个模块，**全部实现**（课程本身就是 CC 简化版，CC 自身远比课程复杂）；本项目**不做** CC 的企业级特性、IDE 集成等
+- **形态**：先做可嵌入、可测试的 single-agent core；CLI / TUI 是 core 的薄前端
+- **能力**：Core 能完成一个 Agent turn / run 的"读 → 改 → 跑 → 修"闭环，并以事件流暴露全过程
+- **设计哲学**：参考 Pi 的 minimal harness / primitives-first 思路：core 提供稳定 primitives，不把 workflow、插件生态、多 Agent 编排做死在内核里
+- **扩展方向**：Skill、MCP、插件、dynamic workflow、多 Agent、长程任务、并发运行都在 core primitives 上逐层扩展
 - **质量目标**：**真正能用**（不是 demo 玩具）— 别人 clone 完按 README 5 分钟能跑起来
 - **兼容性**：多 LLM provider 可换（Anthropic / OpenAI / Ollama 等），不被绑死
 
@@ -19,32 +20,46 @@
 
 ## 当前目标
 
-**MVP — 6 件**（最小可用且"真正能用"）：
+**Agent Core v1 — 稳定可扩展的单 Agent 地基**：
 
-| 件 | 含义 | 用户能看到的 |
-|----|------|-------------|
-| 1. **TUI 启动** | `agent-flow` 命令 → 全屏对话框 | 终端弹出有结构、有组件的界面 |
-| 2. **AgentLoop** | LLM 对话 + tool 调用主循环 | 输 prompt → agent 边想边出、实时显示 |
-| 3. **6 个内置工具** | bash / read / write / edit / glob / grep | 屏幕显示 `⚙ Read auth.py` / `⚙ Bash pytest` 之类 |
-| 4. **LLM provider** | LiteLLM 统一接口，支持多 provider | 改一行 settings 切模型 |
-| 5. **配置 + 模型 alias** | 用户级 + 项目级 settings；`/model` 切 alias | 跟 CC 一致 |
-| 6. **Session + 权限系统** | 一个对话 = 一个 session；TUI 弹权限确认框 | 退出再开能从断点继续；危险命令前要确认 |
+| 模块 | v1 要做到 | 未来挂载 |
+|------|----------|----------|
+| **AgentLoop** | 单 Agent 多轮 tool-call loop；streaming；tool result 回灌；明确 finish / fail / cancel | workflow / sub-agent / long-running scheduler |
+| **Event Stream** | 所有过程以事件输出：run、turn、message、tool、policy、error | TUI、日志、session、observability、多 Agent 调度 |
+| **Tool Registry** | 内置工具统一注册、启用、执行；tool schema 清晰 | MCP tools、插件 tools、自定义 tools |
+| **Context Builder** | 组装 system prompt、项目上下文、工具说明 | Skill、AGENTS.md、memory、dynamic workflow |
+| **Policy Hook** | 工具执行前有统一 allow / deny / ask 接口；策略先最小 | 权限系统、沙箱、路径保护、审批 UI |
+| **State / Session** | 事件与消息可序列化、可持久化、可恢复 | session tree、branch、Ralph fresh-context loop |
+| **LLM Provider** | provider 抽象 + fake provider 测试桩；真实 provider 后接 LiteLLM | 多 provider、local model、路由 |
+| **Thin CLI/TUI** | 作为 core 消费者验证闭环，不主导架构 | 更完整交互体验 |
 
-**MVP 完成判定**：用户能 `pip install agent-flow` → `agent-flow` → 改一个文件 → 跑测试 → 关掉 → 明天 `agent-flow` 选回 session 继续。**没有"玩具感"**。
+**v1 完成判定**：在一个小 Python 项目里，用户通过 CLI/TUI 输入"修复 failing test"，Agent Core 能流式输出、读取文件、修改代码、运行测试、根据结果继续，最终明确完成或失败；全过程有事件记录并可保存/恢复。**没有"玩具感"**。
+
+**v1 明确不做**：Skill 系统、MCP client、插件市场、多 Agent、子 Agent、长程任务、并发调度、dynamic workflow、复杂 session tree。这些是 v1 core primitives 稳定后的后续 phase。
 
 ---
 
 ## 下一动作
 
-1. 用户 review `docs/PROJECT.md`（本文件）
-2. 用户 review 通过后，主线程写 `docs/tasks.json`（Phase 1 拆解）
-3. 派活给 worker 跑 Phase 1 task
+1. 主线程已将第一版定位收敛为 Agent Core v1，并写入 `docs/tasks.json` Phase 1
+2. 派 worker 从最高优先级 task 开始：读三件套 → 实施 → 质量门禁 → commit → 更新 task
+3. Phase 1 完成后，再讨论 Skill / MCP / 插件层的 v1.1 需求
 
 ---
 
 ## Decisions
 
 > 按时间倒序：最新在上。
+
+### 2026-06-12 — 第一版收敛为 Agent Core v1
+
+用户明确第一版目标不是完整 Claude Code 仿制品，而是一个基础可用、后续好扩展的 Agent Core：
+
+- 首要目标：稳定、健壮、简单、高效、可扩展的 single-agent core
+- 重点参考：Pi 的 minimal harness / primitives-first 架构哲学
+- v1 先不做 Skill / MCP / 多 Agent / 长程任务；只把 ToolProvider、ContextProvider、PolicyProvider、EventSubscriber 等 core primitives 留稳
+- 后续按层扩展：Skill → MCP / plugin → dynamic workflow → multi-agent / long-running / concurrency
+- Core 边界：只负责一个 Agent run/turn 的稳定执行；调度、持久编排、复杂 workflow 放在 core 之外
 
 ### 2026-06-11 — PRD 阶段对齐结果
 
@@ -84,6 +99,13 @@
 
 > 派活 / 收工流水，按时间倒序。
 
+### 2026-06-12 — Agent Core v1 方向对齐
+
+- 讨论并放弃"第一版直接做完整 Skill/MCP/插件/多 Agent"的重目标
+- 确认第一版先做 Agent Core primitives：AgentLoop、Event Stream、Tool Registry、Context Builder、Policy Hook、State/Session、LLM Provider 抽象
+- 参考 Pi / Ralph：Pi 用于 core 架构哲学，Ralph 作为后续长程任务 / fresh-context loop 参考
+- 写入 `docs/tasks.json` Phase 1，准备派 worker 实施
+
 ### 2026-06-11 — PRD 阶段对齐完成 + PROJECT.md 落地
 
 - 4 轮讨论对齐 4 维决策 + 1 维项目名 + 2 维工具/权限补充
@@ -97,6 +119,6 @@
 
 > 需要用户决策才能继续的事。
 
-1. **TUI 框架 textual 最终拍板** — 用户表示要自己看一下 textual v4。暂定用 textual；用户随时可改
-2. **权限模式的具体设计** — 用户提到"参考 references 的权限，他比较简单"。worker 实施时调研 `references/s03_permission/` 后细化
-3. **textual v4 / LiteLLM / pydantic 的具体版本** — 实施时 worker 锁定
+1. **CLI 还是 TUI 先行** — v1 只要求 thin frontend 验证 core；worker 可优先选更快闭环的 CLI，再接 TUI
+2. **真实 LLM provider 接入时机** — Phase 1 先用 fake provider 建稳定测试；LiteLLM 可在 core loop 稳定后接入
+3. **Skill / MCP 的第一批扩展验收** — Phase 1 后再决定 v1.1 先做 Skill 还是 MCP；Tavily search MCP 是候选验收案例
