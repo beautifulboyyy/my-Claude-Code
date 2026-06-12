@@ -131,6 +131,13 @@ API key 只从环境变量或用户级本地配置读取，禁止写入仓库。
 
 > 派活 / 收工流水，按时间倒序。
 
+### 2026-06-12 — T007 接入 MiMo 真实 provider
+
+- 新增 `MiMoProvider`，默认使用 MiMo OpenAI-compatible chat completions endpoint 与 `mimo-v2.5-pro`
+- API key 只从 `MIMO_API_KEY` 或用户本地 `~/.agent-flow/settings.json` 读取；缺 key 时 provider 明确报错
+- 当前采用非 streaming HTTP 响应到 provider chunk 的适配：文本生成 `ProviderTextDelta` + `ProviderFinalResponse`，工具调用生成完整 `ProviderToolCall`
+- 新增离线 HTTP mock 单测与缺 key 跳过式真实 smoke test；T007 已在 `docs/tasks.json` 标记为通过
+
 ### 2026-06-12 — T006 加入超时取消与失败语义
 
 - `AgentLoop` 为 provider stream 与 tool execution 边界加入可配置 timeout，并支持外部 `asyncio.Event` 取消

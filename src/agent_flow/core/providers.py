@@ -1,13 +1,18 @@
-"""LLM provider interface and deterministic fake provider."""
+"""LLM provider interface and provider implementations."""
 
 from __future__ import annotations
 
 import asyncio
-from collections.abc import AsyncIterator, Iterable, Mapping, Sequence
+import json
+import os
+from collections.abc import AsyncIterator, Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
-from typing import ClassVar, Literal, Protocol, Self
+from pathlib import Path
+from typing import ClassVar, Literal, Protocol, Self, cast
+from urllib.error import HTTPError, URLError
+from urllib.request import Request, urlopen
 
-from agent_flow.core.messages import AnyMessage, AssistantMessage, ToolCall, _require_str, message_from_dict
+from agent_flow.core.messages import AnyMessage, AssistantMessage, ToolCall, ToolMessage, _require_str, message_from_dict
 from agent_flow.core.types import JsonObject
 
 
@@ -94,6 +99,7 @@ class ProviderNeverStep:
 
 AnyProviderChunk = ProviderTextDelta | ProviderToolCall | ProviderFinalResponse
 ProviderScriptItem = AnyProviderChunk | ProviderErrorStep | ProviderNeverStep | Mapping[str, object]
+PostJson = Callable[[str, Mapping[str, object], Mapping[str, str], float], Mapping[str, object]]
 
 
 class ProviderError(RuntimeError):
@@ -115,6 +121,205 @@ class LLMProvider(Protocol):
     ) -> AsyncIterator[AnyProviderChunk]:
         """Stream provider chunks for one assistant turn."""
         ...
+
+
+def _post_json(
+    url: str,
+    payload: Mapping[str, object],
+    headers: Mapping[str, str],
+    timeout: float,
+) -> Mapping[str, object]:
+    body = json.dumps(payload).encode("utf-8")
+    request = Request(url, data=body, headers=dict(headers), method="POST")
+    try:
+        with urlopen(request, timeout=timeout) as response:
+            raw_body = response.read().decode("utf-8")
+    except HTTPError as exc:
+        raise ProviderError(f"MiMo API request failed: HTTP {exc.code}", code="mimo_http_error") from exc
+    except URLError as exc:
+        raise ProviderError(f"MiMo API request failed: {exc.reason}", code="mimo_network_error") from exc
+
+    try:
+        decoded = json.loads(raw_body)
+    except json.JSONDecodeError as exc:
+        raise ProviderError("MiMo API returned invalid JSON.", code="mimo_invalid_json") from exc
+    if not isinstance(decoded, dict):
+        raise ProviderError("MiMo API returned a non-object response.", code="mimo_invalid_response")
+    return cast(Mapping[str, object], decoded)
+
+
+@dataclass(frozen=True, slots=True)
+class MiMoProvider:
+    """MiMo OpenAI-compatible chat completions provider.
+
+    The first version adapts one non-streaming OpenAI-compatible response into
+    provider chunks. Keeping that mapping explicit leaves room for native SSE
+    streaming later without changing AgentLoop.
+    """
+
+    api_key: str
+    model: str = "mimo-v2.5-pro"
+    endpoint: str = "https://api.xiaomimimo.com/v1/chat/completions"
+    timeout: float = 60.0
+    api_key_source: Literal["explicit", "environment", "user_config"] = "explicit"
+    post_json: PostJson = _post_json
+
+    @classmethod
+    def from_default_config(cls, *, config_path: Path | None = None) -> "MiMoProvider":
+        env_key = os.environ.get("MIMO_API_KEY")
+        if env_key:
+            return cls(api_key=env_key, api_key_source="environment")
+
+        resolved_config_path = config_path or Path.home() / ".agent-flow" / "settings.json"
+        config = _read_user_config(resolved_config_path)
+        api_key = config.get("mimo_api_key")
+        if isinstance(api_key, str) and api_key:
+            model = config.get("mimo_model")
+            if not isinstance(model, str) or not model:
+                model = "mimo-v2.5-pro"
+            return cls(api_key=api_key, model=model, api_key_source="user_config")
+
+        raise ProviderError(
+            "MiMo API key is required. Set MIMO_API_KEY or configure ~/.agent-flow/settings.json.",
+            code="mimo_api_key_missing",
+        )
+
+    async def stream(
+        self,
+        messages: Sequence[AnyMessage],
+        *,
+        tools: Sequence[JsonObject] = (),
+    ) -> AsyncIterator[AnyProviderChunk]:
+        payload: dict[str, object] = {
+            "model": self.model,
+            "messages": [_message_to_openai(message) for message in messages],
+            "stream": False,
+        }
+        if tools:
+            payload["tools"] = [_tool_schema_to_openai(tool) for tool in tools]
+
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json",
+        }
+        response = await asyncio.to_thread(self.post_json, self.endpoint, payload, headers, self.timeout)
+        for chunk in _chunks_from_openai_response(response):
+            yield chunk
+
+
+def _read_user_config(config_path: Path) -> Mapping[str, object]:
+    if not config_path.exists():
+        return {}
+    try:
+        decoded = json.loads(config_path.read_text(encoding="utf-8"))
+    except OSError as exc:
+        raise ProviderError(f"Could not read MiMo config file: {config_path}", code="mimo_config_error") from exc
+    except json.JSONDecodeError as exc:
+        raise ProviderError(f"MiMo config file is not valid JSON: {config_path}", code="mimo_config_error") from exc
+    if not isinstance(decoded, dict):
+        raise ProviderError(f"MiMo config file must contain a JSON object: {config_path}", code="mimo_config_error")
+    return cast(Mapping[str, object], decoded)
+
+
+def _message_to_openai(message: AnyMessage) -> dict[str, object]:
+    payload: dict[str, object] = {
+        "role": message.role,
+        "content": message.content,
+    }
+    if isinstance(message, AssistantMessage) and message.tool_calls:
+        payload["tool_calls"] = [
+            {
+                "id": tool_call.id,
+                "type": "function",
+                "function": {
+                    "name": tool_call.name,
+                    "arguments": json.dumps(tool_call.arguments),
+                },
+            }
+            for tool_call in message.tool_calls
+        ]
+    if isinstance(message, ToolMessage):
+        payload["tool_call_id"] = message.tool_call_id
+    return payload
+
+
+def _tool_schema_to_openai(tool: Mapping[str, object]) -> dict[str, object]:
+    name = _require_str(tool, "name")
+    description = _require_str(tool, "description")
+    input_schema = tool.get("input_schema", {"type": "object"})
+    if not isinstance(input_schema, dict):
+        raise ProviderError(f"Tool schema for {name!r} must contain an object input_schema.", code="mimo_tool_schema_error")
+    return {
+        "type": "function",
+        "function": {
+            "name": name,
+            "description": description,
+            "parameters": input_schema,
+        },
+    }
+
+
+def _chunks_from_openai_response(response: Mapping[str, object]) -> list[AnyProviderChunk]:
+    message = _first_choice_message(response)
+    content = message.get("content")
+    text = content if isinstance(content, str) else ""
+    raw_tool_calls = message.get("tool_calls", [])
+    if raw_tool_calls is None:
+        raw_tool_calls = []
+    if not isinstance(raw_tool_calls, list):
+        raise ProviderError("MiMo API returned malformed tool_calls.", code="mimo_invalid_response")
+
+    chunks: list[AnyProviderChunk] = []
+    if text:
+        chunks.append(ProviderTextDelta(delta=text))
+    for raw_tool_call in raw_tool_calls:
+        chunks.append(ProviderToolCall(tool_call=_tool_call_from_openai(raw_tool_call)))
+
+    if chunks and any(isinstance(chunk, ProviderToolCall) for chunk in chunks):
+        return chunks
+
+    message_id = response.get("id")
+    if not isinstance(message_id, str) or not message_id:
+        message_id = "mimo_assistant"
+    chunks.append(ProviderFinalResponse(message=AssistantMessage(id=message_id, content=text)))
+    return chunks
+
+
+def _first_choice_message(response: Mapping[str, object]) -> Mapping[str, object]:
+    choices = response.get("choices")
+    if not isinstance(choices, list) or not choices:
+        raise ProviderError("MiMo API response did not include choices.", code="mimo_invalid_response")
+    first_choice = choices[0]
+    if not isinstance(first_choice, Mapping):
+        raise ProviderError("MiMo API returned malformed choices.", code="mimo_invalid_response")
+    message = first_choice.get("message")
+    if not isinstance(message, Mapping):
+        raise ProviderError("MiMo API choice did not include a message.", code="mimo_invalid_response")
+    return cast(Mapping[str, object], message)
+
+
+def _tool_call_from_openai(raw_tool_call: object) -> ToolCall:
+    if not isinstance(raw_tool_call, Mapping):
+        raise ProviderError("MiMo API returned a malformed tool call.", code="mimo_invalid_response")
+    tool_call_id = _require_str(raw_tool_call, "id")
+    function = raw_tool_call.get("function")
+    if not isinstance(function, Mapping):
+        raise ProviderError("MiMo API returned a tool call without a function.", code="mimo_invalid_response")
+    function_payload = cast(Mapping[str, object], function)
+    name = _require_str(function_payload, "name")
+    raw_arguments = function_payload.get("arguments", "{}")
+    if isinstance(raw_arguments, str):
+        try:
+            decoded_arguments = json.loads(raw_arguments or "{}")
+        except json.JSONDecodeError as exc:
+            raise ProviderError("MiMo API returned invalid tool call arguments JSON.", code="mimo_invalid_response") from exc
+    elif isinstance(raw_arguments, Mapping):
+        decoded_arguments = raw_arguments
+    else:
+        raise ProviderError("MiMo API returned unsupported tool call arguments.", code="mimo_invalid_response")
+    if not isinstance(decoded_arguments, dict):
+        raise ProviderError("MiMo API tool call arguments must decode to an object.", code="mimo_invalid_response")
+    return ToolCall(id=tool_call_id, name=name, arguments=cast(JsonObject, decoded_arguments))
 
 
 def provider_chunk_from_dict(payload: Mapping[str, object]) -> AnyProviderChunk:

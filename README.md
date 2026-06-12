@@ -44,3 +44,31 @@ python -m pytest
 ```powershell
 python -m mypy
 ```
+
+## MiMo 真实 provider
+
+`MiMoProvider` 默认使用 OpenAI-compatible endpoint：
+
+- endpoint: `https://api.xiaomimimo.com/v1/chat/completions`
+- model: `mimo-v2.5-pro`
+
+API key 只从本地环境或用户级本地配置读取，仓库内不要写入 key：
+
+```powershell
+$env:MIMO_API_KEY = "..."
+```
+
+也可以写入用户本地配置 `~/.agent-flow/settings.json`：
+
+```json
+{
+  "mimo_api_key": "...",
+  "mimo_model": "mimo-v2.5-pro"
+}
+```
+
+缺少 `MIMO_API_KEY` 时，测试套件中的真实 API smoke test 会跳过。手动验证真实 provider：
+
+```powershell
+python -m pytest tests/test_mimo_provider.py -q
+```

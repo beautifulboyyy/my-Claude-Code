@@ -53,7 +53,7 @@
       "title": "接入 MiMo 真实 provider",
       "description": "在 fake provider 与 AgentLoop 稳定后接入 MiMo 兼容 API provider，优先 OpenAI-compatible endpoint，必要时可切 Anthropic-compatible endpoint。验收：有跳过式集成测试或手动验证说明，缺少 MIMO_API_KEY 时测试套件仍可通过。",
       "priority": 7,
-      "passes": false,
+      "passes": true,
       "notes": "OpenAI endpoint: https://api.xiaomimimo.com/v1/chat/completions；Anthropic endpoint: https://api.xiaomimimo.com/anthropic/v1/messages；默认模型候选 mimo-v2.5-pro；API key 只从 MIMO_API_KEY 或用户本地配置读取。"
     },
     {
