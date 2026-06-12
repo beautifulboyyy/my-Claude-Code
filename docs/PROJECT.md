@@ -131,6 +131,13 @@ API key 只从环境变量或用户级本地配置读取，禁止写入仓库。
 
 > 派活 / 收工流水，按时间倒序。
 
+### 2026-06-12 — T008 实现内置 coding 工具
+
+- 新增 read / write / edit / glob / grep / shell 六个内置工具，统一通过 `register_builtin_tools()` 注册到 `ToolRegistry`
+- 文件类工具默认限制在 workspace 内；edit 采用 old_text/new_text 单次精确替换，缺失或多义时返回明确错误
+- shell 工具默认使用 PowerShell（优先 `pwsh`，fallback `powershell`），支持 workspace cwd 与超时，返回 stdout / stderr / exit code
+- 新增 tmp_path 单测覆盖六个工具、注册入口、workspace 越界与 PowerShell 执行路径；T008 已在 `docs/tasks.json` 标记为通过
+
 ### 2026-06-12 — T007 接入 MiMo 真实 provider
 
 - 新增 `MiMoProvider`，默认使用 MiMo OpenAI-compatible chat completions endpoint 与 `mimo-v2.5-pro`

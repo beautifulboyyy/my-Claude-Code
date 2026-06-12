@@ -1,6 +1,7 @@
 """Core data models shared by Agent Flow runtime layers."""
 
 from agent_flow.core.agent_loop import AgentLoop
+from agent_flow.core.builtin_tools import builtin_tools, register_builtin_tools
 from agent_flow.core.events import (
     AnyEvent,
     ErrorEvent,
@@ -80,7 +81,9 @@ __all__ = [
     "TurnFinishedEvent",
     "TurnStartedEvent",
     "UserMessage",
+    "builtin_tools",
     "event_from_dict",
     "message_from_dict",
     "provider_chunk_from_dict",
+    "register_builtin_tools",
 ]

@@ -61,7 +61,7 @@
       "title": "实现内置 coding 工具",
       "description": "实现 read、write、edit、glob、grep、shell 六个基础工具，并通过 ToolRegistry 暴露。验收：每个工具有单测，路径处理遵守 Windows/PowerShell 默认约定。",
       "priority": 8,
-      "passes": false,
+      "passes": true,
       "notes": "shell 工具在 Windows 默认走 PowerShell；类 Unix shell 后续再抽象。"
     },
     {
