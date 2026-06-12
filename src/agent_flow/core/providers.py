@@ -131,10 +131,22 @@ class FakeProvider:
     """Deterministic provider for offline agent-loop tests."""
 
     def __init__(self, script: Iterable[ProviderScriptItem], *, step_delay: float = 0.0) -> None:
-        self._script = tuple(self._coerce_script_item(item) for item in script)
+        self._scripts: tuple[tuple[AnyProviderChunk | ProviderErrorStep, ...], ...] = (
+            tuple(self._coerce_script_item(item) for item in script),
+        )
         self._step_delay = step_delay
+        self._request_count = 0
         self.requests: tuple[tuple[AnyMessage, ...], ...] = ()
         self.tool_requests: tuple[tuple[JsonObject, ...], ...] = ()
+
+    @classmethod
+    def turns(cls, scripts: Iterable[Iterable[ProviderScriptItem]], *, step_delay: float = 0.0) -> "FakeProvider":
+        provider = cls([], step_delay=step_delay)
+        provider._scripts = tuple(
+            tuple(cls._coerce_script_item(item) for item in script)
+            for script in scripts
+        )
+        return provider
 
     @staticmethod
     def text(delta: str) -> ProviderTextDelta:
@@ -160,10 +172,15 @@ class FakeProvider:
     ) -> AsyncIterator[AnyProviderChunk]:
         self.requests = (*self.requests, tuple(messages))
         self.tool_requests = (*self.tool_requests, tuple(dict(tool) for tool in tools))
-        return self._stream_script()
+        script_index = min(self._request_count, len(self._scripts) - 1)
+        self._request_count += 1
+        return self._stream_script(self._scripts[script_index])
 
-    async def _stream_script(self) -> AsyncIterator[AnyProviderChunk]:
-        for item in self._script:
+    async def _stream_script(
+        self,
+        script: Sequence[AnyProviderChunk | ProviderErrorStep],
+    ) -> AsyncIterator[AnyProviderChunk]:
+        for item in script:
             if self._step_delay:
                 await asyncio.sleep(self._step_delay)
             else:

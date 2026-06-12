@@ -37,7 +37,7 @@
       "title": "实现 AgentLoop 最小闭环",
       "description": "基于 fake provider 和 ToolRegistry 实现单 Agent 多轮 tool-call loop：用户输入、assistant streaming、tool call、tool result 回灌、最终完成。验收：端到端测试覆盖一次工具调用后继续回答。",
       "priority": 5,
-      "passes": false,
+      "passes": true,
       "notes": "Core 只做单 Agent run，不做 workflow 编排。"
     },
     {

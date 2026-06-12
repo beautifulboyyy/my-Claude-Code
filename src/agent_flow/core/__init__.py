@@ -1,5 +1,6 @@
 """Core data models shared by Agent Flow runtime layers."""
 
+from agent_flow.core.agent_loop import AgentLoop
 from agent_flow.core.events import (
     AnyEvent,
     ErrorEvent,
@@ -39,6 +40,7 @@ from agent_flow.core.tools import Tool, ToolHandler, ToolHandlerResult, ToolRegi
 from agent_flow.core.types import JsonObject, JsonPrimitive, JsonValue
 
 __all__ = [
+    "AgentLoop",
     "AnyEvent",
     "AnyMessage",
     "AnyProviderChunk",

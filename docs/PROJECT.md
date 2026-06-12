@@ -131,6 +131,13 @@ API key 只从环境变量或用户级本地配置读取，禁止写入仓库。
 
 > 派活 / 收工流水，按时间倒序。
 
+### 2026-06-12 — T005 实现 AgentLoop 最小闭环
+
+- 新增 `AgentLoop` async event stream，支持用户输入、assistant delta、tool call、ToolRegistry 执行、tool result 回灌与最终完成
+- `FakeProvider` 支持按 turn 提供不同脚本，用于稳定验证多轮 provider 请求
+- 新增端到端测试覆盖一次工具调用后继续回答
+- T005 已在 `docs/tasks.json` 标记为通过
+
 ### 2026-06-12 — T004 实现 ToolRegistry 基础能力
 
 - 新增 `Tool` 与 `ToolRegistry`，支持工具注册、启用 / 禁用、active list、schema 暴露与 async 执行分发
