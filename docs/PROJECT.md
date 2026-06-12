@@ -122,6 +122,13 @@ API key 只从环境变量或用户级本地配置读取，禁止写入仓库。
 
 > 派活 / 收工流水，按时间倒序。
 
+### 2026-06-12 — T001 初始化 Agent Core 包骨架
+
+- 建立 `src/agent_flow/` Python 包与 `agent-flow` console script
+- 建立最小 Textual TUI shell，保持 UI 为 thin frontend，不放 AgentLoop 逻辑
+- 建立 pytest / mypy 门禁与 README 本地启动说明
+- T001 已在 `docs/tasks.json` 标记为通过
+
 ### 2026-06-12 — Agent Core v1 方向对齐
 
 - 讨论并放弃"第一版直接做完整 Skill/MCP/插件/多 Agent"的重目标

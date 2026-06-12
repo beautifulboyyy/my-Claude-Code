@@ -5,7 +5,7 @@
       "title": "初始化 Agent Core 包骨架",
       "description": "建立 Python 包结构、Textual TUI 入口雏形和测试框架。验收：能运行最小 TUI 启动命令与测试命令，README 或项目说明包含本地启动方式。",
       "priority": 1,
-      "passes": false,
+      "passes": true,
       "notes": "TUI 是 thin frontend；不要把 AgentLoop 逻辑塞进 UI。CLI 可作为调试辅助但不是主路径。"
     },
     {

@@ -1,0 +1,31 @@
+[build-system]
+requires = ["hatchling>=1.26"]
+build-backend = "hatchling.build"
+
+[project]
+name = "agent-flow"
+version = "0.1.0"
+description = "A minimal, extensible single-agent core with a thin Textual TUI."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "textual>=4.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "mypy>=1.16.0",
+    "pytest>=8.0.0",
+]
+
+[project.scripts]
+agent-flow = "agent_flow.__main__:main"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.mypy]
+python_version = "3.12"
+packages = ["agent_flow"]
+strict = true
