@@ -13,7 +13,7 @@
       "title": "定义 core 消息与事件模型",
       "description": "定义可序列化的 message、tool call、tool result、run/turn/message/tool/error event 数据模型。验收：模型可 JSON round-trip，并有聚焦单测。",
       "priority": 2,
-      "passes": false,
+      "passes": true,
       "notes": "事件模型是 UI、session、未来 multi-agent 调度的共同语言。"
     },
     {

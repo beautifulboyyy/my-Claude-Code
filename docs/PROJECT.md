@@ -131,6 +131,13 @@ API key 只从环境变量或用户级本地配置读取，禁止写入仓库。
 
 > 派活 / 收工流水，按时间倒序。
 
+### 2026-06-12 — T002 定义 core 消息与事件模型
+
+- 新增 `agent_flow.core` 消息、工具调用 / 结果、事件模型
+- 事件覆盖 run / turn / message / tool / error，使用显式 `type` tag 做 JSON 反序列化分发
+- 新增聚焦单测覆盖 JSON round-trip 与未知事件类型拒绝
+- T002 已在 `docs/tasks.json` 标记为通过
+
 ### 2026-06-12 — T001 初始化 Agent Core 包骨架
 
 - 建立 `src/agent_flow/` Python 包与 `agent-flow` console script

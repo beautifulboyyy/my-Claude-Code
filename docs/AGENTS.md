@@ -54,6 +54,10 @@ worker 完工回主线程时**必给 4 块**：
 
 > worker 跑完发现可复用的教训 / 模式 / 踩坑时，按 `### YYYY-MM-DD — 主题` 追加在此区上方（按时间倒序）。
 
+### 2026-06-12 — slotted dataclass 继承避免无参 super()
+
+- 在 `@dataclass(slots=True)` 的继承类方法中，无参 `super()` 可能触发 `TypeError: super(type, obj): obj must be an instance or subtype of type`；优先显式调用基类方法（如 `Message.to_dict(self)`），并用聚焦 round-trip 测试覆盖序列化路径。
+
 ### 2026-06-12 — Python TUI 依赖用项目虚拟环境隔离
 
 - Textual 新版本会带入较新的 `rich`，可能与全局 / Anaconda 里已有包（如 `streamlit`）的旧约束冲突；项目验证优先按 README 创建 `.venv` 后 `python -m pip install -e ".[dev]"`。
