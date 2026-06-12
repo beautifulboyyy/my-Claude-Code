@@ -25,20 +25,37 @@ from agent_flow.core.messages import (
     UserMessage,
     message_from_dict,
 )
+from agent_flow.core.providers import (
+    AnyProviderChunk,
+    FakeProvider,
+    LLMProvider,
+    ProviderError,
+    ProviderFinalResponse,
+    ProviderTextDelta,
+    ProviderToolCall,
+    provider_chunk_from_dict,
+)
 from agent_flow.core.types import JsonObject, JsonPrimitive, JsonValue
 
 __all__ = [
     "AnyEvent",
     "AnyMessage",
+    "AnyProviderChunk",
     "AssistantMessage",
     "ErrorEvent",
     "Event",
+    "FakeProvider",
     "JsonObject",
     "JsonPrimitive",
     "JsonValue",
+    "LLMProvider",
     "Message",
     "MessageCreatedEvent",
     "MessageDeltaEvent",
+    "ProviderError",
+    "ProviderFinalResponse",
+    "ProviderTextDelta",
+    "ProviderToolCall",
     "RunFinishedEvent",
     "RunStartedEvent",
     "SystemMessage",
@@ -52,4 +69,5 @@ __all__ = [
     "UserMessage",
     "event_from_dict",
     "message_from_dict",
+    "provider_chunk_from_dict",
 ]

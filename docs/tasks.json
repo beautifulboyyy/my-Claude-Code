@@ -21,7 +21,7 @@
       "title": "实现 fake LLM provider",
       "description": "实现可脚本化的 fake provider，用于稳定复现 assistant streaming、tool call、final response、错误等路径。验收：无需真实 API key 即可测试 agent loop。",
       "priority": 3,
-      "passes": false,
+      "passes": true,
       "notes": "先 fake 后真实 provider，避免 core 测试被网络和模型不确定性污染。"
     },
     {

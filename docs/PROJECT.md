@@ -131,6 +131,13 @@ API key 只从环境变量或用户级本地配置读取，禁止写入仓库。
 
 > 派活 / 收工流水，按时间倒序。
 
+### 2026-06-12 — T003 实现 fake LLM provider
+
+- 新增 `LLMProvider` async streaming 协议与 provider chunk 模型
+- 新增可脚本化 `FakeProvider`，覆盖文本 delta、tool call、final response、provider error
+- 新增 provider chunk JSON round-trip 与 dict/message 互操作测试
+- T003 已在 `docs/tasks.json` 标记为通过
+
 ### 2026-06-12 — T002 定义 core 消息与事件模型
 
 - 新增 `agent_flow.core` 消息、工具调用 / 结果、事件模型
