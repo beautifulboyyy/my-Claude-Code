@@ -10,6 +10,7 @@
 ### 平台与环境
 
 - **平台**：Windows 11。**PowerShell 是默认 shell**（Bash 工具仍可用于 POSIX 脚本）
+- **Python 开发环境默认使用项目 `.venv`**：如果仓库根目录没有 `.venv`，worker 在跑 Python 测试 / 安装依赖前先创建 `.venv` 并使用 `.\.venv\Scripts\python.exe` / 激活后的 `python`。不要把依赖装进 Anaconda / 全局 Python。
 - **写文件路径时优先用正斜杠**（`/d/code/...` 或 `D:/code/...`），跨 shell 兼容
 - **多行命令 + 含反斜杠路径容易踩坑**：拆成多步、用 `&&` 串接；含路径的 `Remove-Item` / `Move-Item` 失败时优先怀疑路径转义
 

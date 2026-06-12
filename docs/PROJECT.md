@@ -56,6 +56,15 @@ API key 只从环境变量或用户级本地配置读取，禁止写入仓库。
 
 > 按时间倒序：最新在上。
 
+### 2026-06-12 — Python 开发环境默认使用项目 `.venv`
+
+用户确认希望项目使用 `.venv` 而不是 Conda / Anaconda 全局环境：
+
+- 后续 worker 跑 Python 测试、类型检查、安装依赖前，优先使用仓库根目录 `.venv`
+- 若 `.venv` 不存在，worker 应先创建 `.venv`，再安装 `.[dev]`
+- Anaconda 只作为系统里已有 Python 来源，不作为本项目依赖安装目标
+- 原因：Textual / Rich 等 TUI 依赖可能与 Anaconda 全局包约束冲突，`.venv` 更可复现
+
 ### 2026-06-12 — 真实 API 验收纳入 Phase 1
 
 用户确认本地有真实 API key，因此 Phase 1 不只做 fake provider：
