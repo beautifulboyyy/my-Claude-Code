@@ -85,8 +85,15 @@ class ProviderErrorStep:
         return cls(message=_require_str(payload, "message"), code=_require_str(payload, "code"))
 
 
+@dataclass(frozen=True, slots=True)
+class ProviderNeverStep:
+    """A fake-provider script step that never yields another chunk."""
+
+    type: ClassVar[Literal["never"]] = "never"
+
+
 AnyProviderChunk = ProviderTextDelta | ProviderToolCall | ProviderFinalResponse
-ProviderScriptItem = AnyProviderChunk | ProviderErrorStep | Mapping[str, object]
+ProviderScriptItem = AnyProviderChunk | ProviderErrorStep | ProviderNeverStep | Mapping[str, object]
 
 
 class ProviderError(RuntimeError):
@@ -131,7 +138,7 @@ class FakeProvider:
     """Deterministic provider for offline agent-loop tests."""
 
     def __init__(self, script: Iterable[ProviderScriptItem], *, step_delay: float = 0.0) -> None:
-        self._scripts: tuple[tuple[AnyProviderChunk | ProviderErrorStep, ...], ...] = (
+        self._scripts: tuple[tuple[AnyProviderChunk | ProviderErrorStep | ProviderNeverStep, ...], ...] = (
             tuple(self._coerce_script_item(item) for item in script),
         )
         self._step_delay = step_delay
@@ -164,6 +171,10 @@ class FakeProvider:
     def error(message: str, *, code: str = "provider_error") -> ProviderErrorStep:
         return ProviderErrorStep(message=message, code=code)
 
+    @staticmethod
+    def never() -> ProviderNeverStep:
+        return ProviderNeverStep()
+
     def stream(
         self,
         messages: Sequence[AnyMessage],
@@ -178,7 +189,7 @@ class FakeProvider:
 
     async def _stream_script(
         self,
-        script: Sequence[AnyProviderChunk | ProviderErrorStep],
+        script: Sequence[AnyProviderChunk | ProviderErrorStep | ProviderNeverStep],
     ) -> AsyncIterator[AnyProviderChunk]:
         for item in script:
             if self._step_delay:
@@ -187,10 +198,13 @@ class FakeProvider:
                 await asyncio.sleep(0)
             if isinstance(item, ProviderErrorStep):
                 raise ProviderError(item.message, code=item.code)
+            if isinstance(item, ProviderNeverStep):
+                await asyncio.Event().wait()
+                continue
             yield item
 
     @staticmethod
-    def _coerce_script_item(item: ProviderScriptItem) -> AnyProviderChunk | ProviderErrorStep:
-        if isinstance(item, (ProviderTextDelta, ProviderToolCall, ProviderFinalResponse, ProviderErrorStep)):
+    def _coerce_script_item(item: ProviderScriptItem) -> AnyProviderChunk | ProviderErrorStep | ProviderNeverStep:
+        if isinstance(item, (ProviderTextDelta, ProviderToolCall, ProviderFinalResponse, ProviderErrorStep, ProviderNeverStep)):
             return item
         return _script_item_from_dict(item)

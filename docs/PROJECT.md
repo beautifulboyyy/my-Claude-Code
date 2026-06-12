@@ -131,6 +131,14 @@ API key 只从环境变量或用户级本地配置读取，禁止写入仓库。
 
 > 派活 / 收工流水，按时间倒序。
 
+### 2026-06-12 — T006 加入超时取消与失败语义
+
+- `AgentLoop` 为 provider stream 与 tool execution 边界加入可配置 timeout，并支持外部 `asyncio.Event` 取消
+- 新增显式 `run.failed` / `run.cancelled` 终态事件；正常完成继续使用 `run.finished`
+- `FakeProvider` 新增 `never()` 脚本步，用于稳定复现 provider 永不结束
+- 新增测试覆盖 provider 永不结束、工具永不返回、provider 普通异常、工具异常回灌、取消路径
+- T006 已在 `docs/tasks.json` 标记为通过
+
 ### 2026-06-12 — T005 实现 AgentLoop 最小闭环
 
 - 新增 `AgentLoop` async event stream，支持用户输入、assistant delta、tool call、ToolRegistry 执行、tool result 回灌与最终完成

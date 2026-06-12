@@ -89,6 +89,34 @@ class RunFinishedEvent(Event):
 
 
 @dataclass(frozen=True, slots=True)
+class RunFailedEvent(Event):
+    type: ClassVar[Literal["run.failed"]] = "run.failed"
+    message: str = ""
+    code: str | None = None
+
+    def to_dict(self) -> JsonObject:
+        payload = self._base_dict()
+        payload["message"] = self.message
+        if self.code is not None:
+            payload["code"] = self.code
+        return payload
+
+
+@dataclass(frozen=True, slots=True)
+class RunCancelledEvent(Event):
+    type: ClassVar[Literal["run.cancelled"]] = "run.cancelled"
+    message: str = ""
+    code: str | None = None
+
+    def to_dict(self) -> JsonObject:
+        payload = self._base_dict()
+        payload["message"] = self.message
+        if self.code is not None:
+            payload["code"] = self.code
+        return payload
+
+
+@dataclass(frozen=True, slots=True)
 class TurnStartedEvent(Event):
     type: ClassVar[Literal["turn.started"]] = "turn.started"
     index: int = 0
@@ -178,6 +206,8 @@ class ErrorEvent(Event):
 AnyEvent = (
     RunStartedEvent
     | RunFinishedEvent
+    | RunFailedEvent
+    | RunCancelledEvent
     | TurnStartedEvent
     | TurnFinishedEvent
     | MessageCreatedEvent
@@ -225,6 +255,26 @@ def event_from_dict(payload: Mapping[str, object]) -> AnyEvent:
             sequence=sequence,
             timestamp=timestamp,
             status=_run_status(payload),
+        )
+    if event_type == "run.failed":
+        return RunFailedEvent(
+            id=event_id,
+            run_id=run_id,
+            turn_id=turn_id,
+            sequence=sequence,
+            timestamp=timestamp,
+            message=_require_str(payload, "message"),
+            code=_optional_str(payload, "code"),
+        )
+    if event_type == "run.cancelled":
+        return RunCancelledEvent(
+            id=event_id,
+            run_id=run_id,
+            turn_id=turn_id,
+            sequence=sequence,
+            timestamp=timestamp,
+            message=_require_str(payload, "message"),
+            code=_optional_str(payload, "code"),
         )
     if event_type == "turn.started":
         return TurnStartedEvent(

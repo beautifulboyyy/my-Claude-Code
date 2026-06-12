@@ -45,7 +45,7 @@
       "title": "加入超时取消与失败语义",
       "description": "为模型流和工具执行加入 timeout、cancel、run_failed / run_finished 终态事件。验收：fake provider 永不结束、工具永不返回、普通异常三类路径都有测试且不会挂死。",
       "priority": 6,
-      "passes": false,
+      "passes": true,
       "notes": "吸收 Pi issue 的教训：core 不信任任何 async 边界。"
     },
     {

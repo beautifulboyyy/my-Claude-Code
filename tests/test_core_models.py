@@ -4,6 +4,8 @@ from agent_flow.core import (
     AssistantMessage,
     ErrorEvent,
     MessageCreatedEvent,
+    RunCancelledEvent,
+    RunFailedEvent,
     RunFinishedEvent,
     RunStartedEvent,
     ToolCall,
@@ -76,7 +78,9 @@ def test_run_turn_message_tool_and_error_events_round_trip() -> None:
             code="provider_error",
             recoverable=False,
         ),
-        RunFinishedEvent(id="evt_6", run_id="run_1", status="failed"),
+        RunFailedEvent(id="evt_6", run_id="run_1", message="provider failed", code="provider_error"),
+        RunCancelledEvent(id="evt_7", run_id="run_1", message="cancelled", code="run_cancelled"),
+        RunFinishedEvent(id="evt_8", run_id="run_1", status="completed"),
     ]
 
     for event in events:
